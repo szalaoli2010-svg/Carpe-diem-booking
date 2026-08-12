@@ -353,6 +353,21 @@
     return y + ". " + m + " " + d + ". (" + dayNames[date.getDay()] + ") " + hh + ":" + mm;
   }
 
+  // Converts a Date to an ISO string that includes the correct local timezone offset
+  // (e.g. +02:00 in summer, +01:00 in winter), instead of JS's default .toISOString()
+  // which always shifts to UTC/"Z" and loses/misrepresents the actual local time picked.
+  function toLocalISOString(date) {
+    const pad = n => String(n).padStart(2, "0");
+    const offsetMin = -date.getTimezoneOffset();
+    const sign = offsetMin >= 0 ? "+" : "-";
+    const absOffset = Math.abs(offsetMin);
+    const offH = pad(Math.floor(absOffset / 60));
+    const offM = pad(absOffset % 60);
+    return date.getFullYear() + "-" + pad(date.getMonth() + 1) + "-" + pad(date.getDate()) + "T" +
+      pad(date.getHours()) + ":" + pad(date.getMinutes()) + ":" + pad(date.getSeconds()) +
+      sign + offH + ":" + offM;
+  }
+
   function fishingPrice() {
     if (!booking.pkg) return 0;
     return booking.pkg.price * (1 - booking.pkg.discount);
@@ -754,8 +769,8 @@
         supabaseClient.from("bookings")
           .select("departure")
           .eq("peg_number", pegNumber)
-          .lt("arrival", departure.toISOString())
-          .gt("departure", arrival.toISOString())
+          .lt("arrival", toLocalISOString(departure))
+          .gt("departure", toLocalISOString(arrival))
           .order("departure", { ascending: false })
           .limit(1),
         4000
@@ -910,11 +925,12 @@
 
     const bookingRow = {
       peg_number: booking.peg.number,
+      peg_display_number: booking.peg.displayNumber,
       package_hours: booking.pkg.hours,
       addon_bolcso: booking.addons.bolcso,
       addon_szak: booking.addons.szak,
-      arrival: arrival.toISOString(),
-      departure: departure.toISOString(),
+      arrival: toLocalISOString(arrival),
+      departure: toLocalISOString(departure),
       cabin_included: booking.cabinIncluded,
       cabin_price: booking.cabinPrice,
       customer_name: booking.customer.name,
@@ -1065,8 +1081,8 @@
         const { data, error } = await withTimeout(
           supabaseClient.from("bookings")
             .select("peg_number")
-            .lt("arrival", departure.toISOString())
-            .gt("departure", arrival.toISOString()),
+            .lt("arrival", toLocalISOString(departure))
+            .gt("departure", toLocalISOString(arrival)),
           4000
         );
         if (!error && data && currentStep === requestedStep) {
