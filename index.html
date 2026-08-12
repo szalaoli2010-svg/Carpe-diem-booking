@@ -516,16 +516,36 @@
       if (peg.status === "booked") cls += " booked";
       btn.className = cls;
       btn.style.left = lx + "%"; btn.style.top = ly + "%";
-      if (peg.status !== "booked") btn.textContent = peg.displayNumber;
       if (peg.status !== "booked") {
+        btn.textContent = peg.displayNumber;
         btn.addEventListener("click", () => {
           booking.peg = { number: peg.number, displayNumber: peg.displayNumber, type: peg.type };
           updateStep1Selection();
         });
+      } else {
+        btn.addEventListener("click", () => explainWhyBooked(peg));
       }
       mapWrap.appendChild(btn);
       pegButtons[peg.number] = btn;
     });
+  }
+
+  async function explainWhyBooked(peg) {
+    if (peg.type === "vip") {
+      showToast("A(z) " + peg.displayNumber + ". számú VIP hely jelenleg nem foglalható. Válassz másik helyet.");
+      return;
+    }
+    const dates = currentArrivalDeparture();
+    if (!dates) {
+      showToast("Ez a hely foglalt erre az időpontra. Válassz másik helyet.");
+      return;
+    }
+    const result = await checkPegStillAvailable(peg.number, dates.arrival, dates.departure);
+    if (!result.available && result.nextFreeAt) {
+      showToast("A(z) " + peg.displayNumber + ". számú hely foglalt erre az időpontra. Ha ehhez a helyhez ragaszkodsz, a legközelebbi szabad időpont: " + formatHu(result.nextFreeAt) + ". Vagy válassz másik szabad helyet a térképen.");
+    } else {
+      showToast("A(z) " + peg.displayNumber + ". számú hely jelenleg foglalt erre az időpontra. Válassz másik szabad helyet a térképen.");
+    }
   }
 
   function updateStep1Selection() {
@@ -931,6 +951,8 @@
       addon_szak: booking.addons.szak,
       arrival: toLocalISOString(arrival),
       departure: toLocalISOString(departure),
+      arrival_display: formatHu(arrival),
+      departure_display: formatHu(departure),
       cabin_included: booking.cabinIncluded,
       cabin_price: booking.cabinPrice,
       customer_name: booking.customer.name,
