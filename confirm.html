@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Foglalás megerősítése - Carpe Diem Lake</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    background: #f4f6f4;
+    margin: 0;
+    padding: 20px;
+    color: #1e2b1e;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+  }
+  .container {
+    max-width: 480px;
+    width: 100%;
+    background: white;
+    border-radius: 16px;
+    padding: 32px 24px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    text-align: center;
+  }
+  h1 { font-size: 20px; margin: 0 0 16px 0; }
+  .icon { font-size: 48px; margin-bottom: 16px; }
+  .details { background: #f4f6f4; border-radius: 10px; padding: 16px; margin: 20px 0; text-align: left; font-size: 14px; line-height: 1.7; }
+  .details b { display: inline-block; min-width: 90px; }
+  p.sub { color: #667066; font-size: 14px; line-height: 1.6; }
+  .status-loading { color: #667066; }
+  .status-success { color: #2f7a3d; }
+  .status-error { color: #a12a2a; }
+  button {
+    padding: 14px 24px; border: none; border-radius: 10px; background: #2f7a3d; color: white;
+    font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 8px;
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="icon" id="icon">📅</div>
+  <h1 id="title">Foglalásod hamarosan esedékes</h1>
+  <p class="sub" id="subtext">Kérjük, erősítsd meg, hogy jössz-e a foglalt időpontban.</p>
+  <div class="details" id="details" style="display:none;"></div>
+  <div id="actionButtons" style="display:none; margin-top:20px; display:flex; flex-direction:column; gap:10px;">
+    <button id="confirmBtn">✅ Igen, ott leszek</button>
+    <button id="cantComeBtn" style="background:#e3e8e3; color:#1e2b1e;">Nem tudok menni / időpontot módosítanék</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  const SUPABASE_URL = "https://jeafthdujrzcczgvmgxj.supabase.co";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImplYWZ0aGR1anJ6Y2N6Z3ZtZ3hqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYyNjM2NTEsImV4cCI6MjEwMTgzOTY1MX0.0YSfafV6A8vRA0RaDCL1uzUcwOV68jCu01QtSpnJEuo";
+
+  let supabaseClient = null;
+  try {
+    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  } catch (e) {}
+
+  const icon = document.getElementById("icon");
+  const title = document.getElementById("title");
+  const subtext = document.getElementById("subtext");
+  const details = document.getElementById("details");
+  const actionButtons = document.getElementById("actionButtons");
+
+  function showError(msg) {
+    icon.textContent = "⚠️";
+    title.textContent = "Hiba történt";
+    subtext.textContent = msg;
+  }
+
+  let currentToken = null;
+  let currentBooking = null;
+
+  async function run() {
+    const params = new URLSearchParams(window.location.search);
+    currentToken = params.get("token");
+
+    if (!currentToken) {
+      showError("Hiányzik a megerősítő kód a linkből. Kérjük, használd a levélben kapott teljes linket.");
+      return;
+    }
+    if (!supabaseClient) {
+      showError("Nem sikerült kapcsolódni az adatbázishoz. Próbáld újra pár perc múlva, vagy hívj minket telefonon.");
+      return;
+    }
+
+    try {
+      const { data, error } = await supabaseClient
+        .from("bookings").select("*").eq("confirm_token", currentToken).limit(1);
+
+      if (error || !data || data.length === 0) {
+        showError("Nem található foglalás ehhez a linkhez. Ha úgy gondolod ez hiba, hívj minket telefonon.");
+        return;
+      }
+
+      currentBooking = data[0];
+
+      details.style.display = "block";
+      details.innerHTML =
+        "<div><b>Horgászhely:</b> " + currentBooking.peg_display_number + ". szám</div>" +
+        "<div><b>Érkezés:</b> " + (currentBooking.arrival_display || currentBooking.arrival) + "</div>" +
+        "<div><b>Távozás:</b> " + (currentBooking.departure_display || currentBooking.departure) + "</div>" +
+        "<div><b>Név:</b> " + currentBooking.customer_name + "</div>";
+
+      if (currentBooking.confirmed) {
+        icon.textContent = "✅";
+        title.textContent = "Ez a foglalás már meg van erősítve";
+        subtext.textContent = "Várunk a fenti időpontban!";
+      } else {
+        actionButtons.style.display = "flex";
+      }
+    } catch (e) {
+      showError("Váratlan hiba történt. Próbáld újra, vagy hívj minket telefonon.");
+    }
+  }
+
+  document.getElementById("confirmBtn").addEventListener("click", async () => {
+    actionButtons.style.display = "none";
+    const { error } = await supabaseClient.from("bookings").update({ confirmed: true }).eq("confirm_token", currentToken);
+    if (error) { showError("Nem sikerült megerősíteni. Próbáld újra, vagy hívj minket telefonon."); return; }
+    icon.textContent = "✅";
+    title.textContent = "Foglalás megerősítve!";
+    subtext.textContent = "Köszönjük a visszaigazolást — várunk a fenti időpontban.";
+  });
+
+  document.getElementById("cantComeBtn").addEventListener("click", async () => {
+    actionButtons.style.display = "none";
+    const { error } = await supabaseClient.from("bookings")
+      .update({ needs_followup: true })
+      .eq("confirm_token", currentToken);
+    if (error) { showError("Hiba történt. Kérjük, hívj minket telefonon."); return; }
+    icon.textContent = "📞";
+    title.textContent = "Rendben, jelezzük a foglalás kezelőjének";
+    subtext.textContent = "A foglalás nem törölhető, de szívesen segítünk másik szabad időpontot találni. Hamarosan felvesszük veled a kapcsolatot — vagy hívj minket most: [TELEFONSZÁM].";
+  });
+
+  run();
+</script>
+
+</body>
+</html>
