@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Carpe Diem Lake - Admin</title>
+<style>
+  * { box-sizing: border-box; }
+  :root {
+    --forest: #16261b;
+    --forest-light: #24382a;
+    --brand: #2f7a3d;
+    --brand-light: #6fae5f;
+    --bg: #f6f5f0;
+    --card: #ffffff;
+    --ink: #1e2b1e;
+    --muted: #7d8a7d;
+    --line: #e7e5dd;
+    --lake: #3d7a94;
+    --amber: #c07f1e;
+    --red: #b23a3a;
+  }
+  body {
+    font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    background: var(--bg);
+    margin: 0;
+    padding: 0;
+    color: var(--ink);
+  }
+  ::selection { background: var(--brand-light); color: white; }
+
+  /* Lock screen */
+  .lock-box {
+    max-width: 380px; margin: 12vh auto; background: var(--card); border-radius: 20px;
+    padding: 36px 28px; box-shadow: 0 8px 30px rgba(22,38,27,0.12); text-align: center;
+  }
+  .lock-box .lock-icon { font-size: 32px; margin-bottom: 8px; }
+  .lock-box h1 { font-size: 19px; margin: 0 0 4px 0; letter-spacing: -0.01em; }
+  .lock-box p { color: var(--muted); font-size: 13px; margin: 0 0 20px 0; }
+  .lock-box input {
+    width: 100%; padding: 14px 16px; border-radius: 12px; border: 1.5px solid var(--line);
+    font-size: 16px; margin-bottom: 12px; text-align: center; background: var(--bg);
+  }
+  .lock-box input:focus { outline: none; border-color: var(--brand); }
+  .lock-box button {
+    width: 100%; padding: 14px; border: none; border-radius: 12px; background: var(--forest);
+    color: white; font-size: 15px; font-weight: 700; cursor: pointer; letter-spacing: 0.01em;
+  }
+  .lock-error { color: var(--red); font-size: 13px; margin-top: 10px; display: none; }
+
+  #dashboard { display: none; }
+
+  /* Layout shell */
+  .shell { display: flex; min-height: 100vh; }
+
+  /* Sidebar */
+  .sidebar {
+    width: 232px; background: var(--forest); color: #dce6dd; flex-shrink: 0;
+    display: flex; flex-direction: column; padding: 22px 14px;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; padding: 0 8px 20px 8px; }
+  .brand-mark {
+    width: 34px; height: 34px; border-radius: 9px; background: linear-gradient(135deg, var(--brand) 0%, var(--lake) 100%);
+    display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0;
+  }
+  .brand-name { font-size: 15px; font-weight: 800; color: white; letter-spacing: -0.01em; line-height: 1.2; }
+  .brand-sub { font-size: 10px; color: #7fa088; letter-spacing: 0.05em; text-transform: uppercase; }
+
+  .wave-divider { height: 10px; margin: 4px 8px 16px 8px; opacity: 0.5; }
+
+  .nav-list { list-style: none; padding: 0; margin: 0; flex: 1; }
+  .nav-item {
+    display: flex; align-items: center; gap: 11px; padding: 11px 12px; border-radius: 10px;
+    color: #b7c9ba; font-size: 13.5px; font-weight: 600; cursor: pointer; margin-bottom: 2px;
+    transition: background 0.15s ease;
+  }
+  .nav-item svg { width: 18px; height: 18px; flex-shrink: 0; opacity: 0.85; }
+  .nav-item:hover { background: var(--forest-light); color: white; }
+  .nav-item.active { background: var(--forest-light); color: white; }
+  .nav-item.active svg { opacity: 1; }
+  .nav-item .badge {
+    margin-left: auto; background: var(--red); color: white; font-size: 10px; font-weight: 800;
+    padding: 1px 6px; border-radius: 20px; min-width: 16px; text-align: center;
+  }
+
+  .sidebar-footer { font-size: 11px; color: #6b8a72; padding: 12px 8px 0 8px; border-top: 1px solid var(--forest-light); }
+
+  /* Main area */
+  .main { flex: 1; min-width: 0; }
+  .topbar {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 20px 28px; background: var(--card); border-bottom: 1px solid var(--line);
+    position: sticky; top: 0; z-index: 10;
+  }
+  .topbar h1 { font-size: 20px; margin: 0; letter-spacing: -0.01em; }
+  .topbar .subtitle { color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+  .hamburger { display: none; background: none; border: none; font-size: 22px; cursor: pointer; color: var(--ink); }
+  .refresh-btn {
+    background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 9px 14px;
+    font-size: 13px; font-weight: 700; cursor: pointer; color: var(--ink);
+  }
+
+  .content { padding: 24px 28px; max-width: 980px; }
+
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* Metric cards */
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 20px; }
+  .card {
+    background: var(--card); border-radius: 16px; padding: 18px; border: 1px solid var(--line);
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .card-icon {
+    width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center;
+    font-size: 17px; color: white;
+  }
+  .card .label { font-size: 11.5px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
+  .card .value { font-size: 26px; font-weight: 800; letter-spacing: -0.01em; }
+  .icon-amber { background: var(--amber); }
+  .icon-lake { background: var(--lake); }
+  .icon-brand { background: var(--brand); }
+  .icon-forest { background: var(--forest); }
+  .icon-red { background: var(--red); }
+
+  .section { background: var(--card); border-radius: 16px; padding: 20px; margin-bottom: 18px; border: 1px solid var(--line); }
+  .section-title { font-size: 14.5px; font-weight: 800; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; letter-spacing: -0.005em; }
+
+  .mini-list { font-size: 13px; }
+  .mini-row { display: flex; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid var(--line); }
+  .mini-row:last-child { border-bottom: none; }
+  .empty-note { color: var(--muted); font-size: 13px; text-align: center; padding: 18px 0; }
+
+  .search-box { width: 100%; padding: 13px 16px; border-radius: 12px; border: 1.5px solid var(--line); font-size: 15px; margin-bottom: 12px; background: var(--bg); }
+  .search-box:focus { outline: none; border-color: var(--brand); background: white; }
+  .filter-row { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
+  .filter-chip { background: var(--bg); border: 1px solid var(--line); border-radius: 9px; padding: 8px 13px; font-size: 12.5px; font-weight: 700; color: var(--muted); cursor: pointer; }
+  .filter-chip.active { background: var(--forest); color: white; border-color: var(--forest); }
+
+  .booking-card { border: 1px solid var(--line); border-radius: 14px; padding: 16px; margin-bottom: 10px; }
+  .booking-card.followup { border-color: #e3b8b8; background: #fdf5f5; }
+  .booking-name { font-weight: 700; font-size: 15px; }
+  .booking-peg { font-size: 12px; color: var(--muted); }
+  .booking-detail { font-size: 13px; color: #445044; margin: 3px 0; }
+  .followup-badge { display: inline-block; background: var(--red); color: white; font-size: 10.5px; font-weight: 800; padding: 3px 9px; border-radius: 7px; margin-bottom: 8px; letter-spacing: 0.02em; }
+  .btn-row { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  .btn-small { border: none; border-radius: 9px; padding: 9px 14px; font-size: 12.5px; font-weight: 700; cursor: pointer; }
+  .btn-delete { background: #fbe4e4; color: #a12a2a; }
+  .btn-resolve { background: #e2f0e4; color: var(--brand); }
+
+  .customer-card { border: 1px solid var(--line); border-radius: 14px; padding: 16px; margin-bottom: 10px; cursor: pointer; }
+  .customer-card .name { font-weight: 700; font-size: 15px; }
+  .customer-card .meta { font-size: 12.5px; color: var(--muted); margin-top: 3px; }
+  .customer-history { display: none; margin-top: 12px; border-top: 1px solid var(--line); padding-top: 12px; }
+  .customer-history.show { display: block; }
+  .history-row { font-size: 12.5px; color: #445044; padding: 4px 0; }
+
+  .peg-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; }
+  .peg-tile { border-radius: 12px; padding: 14px 10px; text-align: center; border: 1.5px solid var(--line); }
+  .peg-tile.occupied { background: #fdf5f5; border-color: #e3b8b8; }
+  .peg-tile.free { background: #f0f7f1; border-color: #bfe0c6; }
+  .peg-tile .num { font-size: 17px; font-weight: 800; }
+  .peg-tile .status { font-size: 10.5px; font-weight: 700; margin-top: 4px; letter-spacing: 0.02em; }
+  .peg-tile.occupied .status { color: var(--red); }
+  .peg-tile.free .status { color: var(--brand); }
+
+  .form-group { margin-bottom: 12px; }
+  .form-label { font-size: 12px; font-weight: 700; color: #445044; margin-bottom: 5px; display: block; }
+  .form-input { width: 100%; padding: 11px 13px; border-radius: 10px; border: 1.5px solid var(--line); font-size: 14px; background: var(--bg); }
+  .form-input:focus { outline: none; border-color: var(--brand); background: white; }
+  .form-row { display: flex; gap: 10px; }
+  .form-row .form-group { flex: 1; }
+  .btn-primary { background: var(--forest); color: white; border: none; border-radius: 12px; padding: 13px; font-size: 15px; font-weight: 700; cursor: pointer; width: 100%; margin-top: 8px; }
+  .toggle-form-btn { background: var(--brand); color: white; border: none; border-radius: 9px; padding: 8px 14px; font-size: 12.5px; font-weight: 700; cursor: pointer; }
+  #manualBookingForm { display: none; margin-top: 16px; border-top: 1px solid var(--line); padding-top: 16px; }
+  #manualBookingForm.show { display: block; }
+
+  .package-row { display: flex; gap: 10px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .package-row:last-child { border-bottom: none; }
+  .package-row .pname { flex: 1; font-size: 13.5px; font-weight: 700; }
+  .package-row input { width: 100px; padding: 7px 10px; border-radius: 8px; border: 1.5px solid var(--line); font-size: 13.5px; }
+  .save-note { font-size: 12.5px; color: var(--brand); margin-top: 10px; display: none; font-weight: 600; }
+
+  .infra-note { background: #fbf1de; color: #8a641c; border-radius: 12px; padding: 13px 15px; font-size: 12.5px; line-height: 1.55; margin-top: 14px; }
+
+  /* Mobile: sidebar becomes bottom tab bar */
+  @media (max-width: 860px) {
+    .shell { flex-direction: column; }
+    .sidebar {
+      position: fixed; bottom: 0; left: 0; right: 0; top: auto; width: 100%; height: auto;
+      flex-direction: row; padding: 8px 6px; z-index: 20; box-shadow: 0 -4px 16px rgba(0,0,0,0.15);
+      overflow-x: auto;
+    }
+    .brand, .wave-divider, .sidebar-footer { display: none; }
+    .nav-list { display: flex; flex: 1; gap: 2px; }
+    .nav-item { flex-direction: column; gap: 3px; padding: 7px 6px; font-size: 9.5px; text-align: center; flex: 1; min-width: 56px; }
+    .nav-item .badge { position: absolute; margin-left: 14px; margin-top: -18px; }
+    .main { padding-bottom: 70px; }
+    .content { padding: 18px 16px; }
+    .topbar { padding: 16px 18px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="lock-box" id="lockBox">
+  <div class="lock-icon">🔒</div>
+  <h1>Admin belépés</h1>
+  <p>Carpe Diem Lake — foglalások kezelése</p>
+  <input type="password" id="passwordInput" placeholder="Jelszó">
+  <button id="unlockBtn">Belépés</button>
+  <div class="lock-error" id="lockError">Helytelen jelszó.</div>
+</div>
+
+<div id="dashboard">
+  <div class="shell">
+
+    <nav class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">🎣</div>
+        <div>
+          <div class="brand-name">Carpe Diem</div>
+          <div class="brand-sub">Admin</div>
+        </div>
+      </div>
+      <svg class="wave-divider" viewBox="0 0 200 10" preserveAspectRatio="none"><path d="M0,5 Q10,0 20,5 T40,5 T60,5 T80,5 T100,5 T120,5 T140,5 T160,5 T180,5 T200,5" stroke="#3d7a94" stroke-width="1.5" fill="none"/></svg>
+
+      <ul class="nav-list">
+        <li class="nav-item active" data-tab="tabDashboard">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+          <span>Áttekintés</span>
+        </li>
+        <li class="nav-item" data-tab="tabBookings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
+          <span>Foglalások</span>
+        </li>
+        <li class="nav-item" data-tab="tabCustomers">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="8" r="2.6"/><path d="M15.5 14.2c2.6.4 4.5 2.7 4.5 5.8"/></svg>
+          <span>Vendégek</span>
+        </li>
+        <li class="nav-item" data-tab="tabPegs">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s7-6.5 7-11.5A7 7 0 0 0 5 9.5C5 14.5 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.3"/></svg>
+          <span>Helyek</span>
+        </li>
+        <li class="nav-item" data-tab="tabNotifications">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 1 0-12 0c0 5-2 6-2 6h16s-2-1-2-6"/><path d="M10 20a2 2 0 0 0 4 0"/></svg>
+          <span>Értesítés</span>
+          <span class="badge" id="navBadge" style="display:none;">0</span>
+        </li>
+        <li class="nav-item" data-tab="tabSettings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6V21a2 2 0 1 1-4 0v-.2a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.6 1H21a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.5 1z"/></svg>
+          <span>Beállítás</span>
+        </li>
+      </ul>
+
+      <div class="sidebar-footer">Carpe Diem Lake<br>Horgásztó kezelőfelület</div>
+    </nav>
+
+    <div class="main">
+      <div class="topbar">
+        <div><h1>Áttekintés</h1><div class="subtitle" id="lastUpdated">Betöltés...</div></div>
+        <button class="refresh-btn" id="refreshBtn">🔄 Frissítés</button>
+      </div>
+
+      <div class="content">
+
+        <div class="tab-panel active" id="tabDashboard">
+          <div class="cards">
+            <div class="card"><div class="card-icon icon-amber">☀️</div><div class="label">Mai érkezés</div><div class="value" id="cArrToday">—</div></div>
+            <div class="card"><div class="card-icon icon-lake">🚗</div><div class="label">Mai távozás</div><div class="value" id="cDepToday">—</div></div>
+            <div class="card"><div class="card-icon icon-brand">⛺</div><div class="label">Jelenlegi vendég</div><div class="value" id="cCurrentGuests">—</div></div>
+            <div class="card"><div class="card-icon icon-forest">🎣</div><div class="label">Szabad hely most</div><div class="value" id="cFreeNow">—</div></div>
+            <div class="card"><div class="card-icon icon-red">⚠️</div><div class="label">Visszahívást igényel</div><div class="value" id="cFollowup">—</div></div>
+            <div class="card"><div class="card-icon icon-brand">📈</div><div class="label">Foglalás e hónapban</div><div class="value" id="cMonthCount">—</div></div>
+          </div>
+
+          <div class="section">
+            <div class="section-title">Mai érkezők</div>
+            <div id="todayArrivalsList" class="mini-list"></div>
+          </div>
+          <div class="section">
+            <div class="section-title">Mai távozók</div>
+            <div id="todayDeparturesList" class="mini-list"></div>
+          </div>
+
+          <div class="section">
+            <div class="section-title">Kézi foglalás
+              <button class="toggle-form-btn" id="toggleManualForm">+ Új foglalás</button>
+            </div>
+            <div id="manualBookingForm">
+              <div class="form-row">
+                <div class="form-group"><label class="form-label">Belső peg szám (1-17)</label><input class="form-input" id="mPegNumber" type="number"></div>
+                <div class="form-group"><label class="form-label">Megjelenő szám</label><input class="form-input" id="mPegDisplay" type="number"></div>
+              </div>
+              <div class="form-group"><label class="form-label">Név</label><input class="form-input" id="mName"></div>
+              <div class="form-row">
+                <div class="form-group"><label class="form-label">Email</label><input class="form-input" id="mEmail" type="email"></div>
+                <div class="form-group"><label class="form-label">Telefon</label><input class="form-input" id="mPhone"></div>
+              </div>
+              <div class="form-row">
+                <div class="form-group"><label class="form-label">Érkezés</label><input class="form-input" id="mArrival" type="datetime-local"></div>
+                <div class="form-group"><label class="form-label">Óra hossz</label><input class="form-input" id="mHours" type="number" value="24"></div>
+              </div>
+              <div class="form-row">
+                <div class="form-group"><label class="form-label">Végösszeg (Ft)</label><input class="form-input" id="mTotal" type="number"></div>
+                <div class="form-group"><label class="form-label">Foglaló (Ft)</label><input class="form-input" id="mDeposit" type="number"></div>
+              </div>
+              <button class="btn-primary" id="saveManualBooking">Foglalás mentése</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="tab-panel" id="tabBookings">
+          <input type="text" class="search-box" id="bookingSearch" placeholder="Keresés név, email, telefon vagy hely szerint...">
+          <div class="filter-row">
+            <button class="filter-chip active" data-filter="all">Összes</button>
+            <button class="filter-chip" data-filter="upcoming">Közelgő</button>
+            <button class="filter-chip" data-filter="past">Lezajlott</button>
+            <button class="filter-chip" data-filter="followup">Visszahívást igényel</button>
+          </div>
+          <div id="bookingsList"></div>
+        </div>
+
+        <div class="tab-panel" id="tabCustomers">
+          <input type="text" class="search-box" id="customerSearch" placeholder="Keresés vendég szerint...">
+          <div id="customersList"></div>
+        </div>
+
+        <div class="tab-panel" id="tabPegs">
+          <div class="section">
+            <div class="section-title">Helyek állapota most</div>
+            <div class="peg-grid" id="pegGrid"></div>
+            <div class="infra-note">
+              A helyek karbantartás miatti letiltása (blokkolás adott dátumokra) még nincs beépítve — ehhez egy új adatbázis-mező kellene. Szólj, ha ezt szeretnéd, és hozzáadom.
+            </div>
+          </div>
+        </div>
+
+        <div class="tab-panel" id="tabNotifications">
+          <div class="section">
+            <div class="section-title">Visszahívást igénylő foglalások</div>
+            <div id="notifFollowup" class="mini-list"></div>
+          </div>
+          <div class="section">
+            <div class="section-title">Új foglalások (utolsó 48 óra)</div>
+            <div id="notifNew" class="mini-list"></div>
+          </div>
+          <div class="section">
+            <div class="section-title">Közelgő érkezések (48 órán belül)</div>
+            <div id="notifUpcoming" class="mini-list"></div>
+          </div>
+        </div>
+
+        <div class="tab-panel" id="tabSettings">
+          <div class="section">
+            <div class="section-title">Csomagárak</div>
+            <div id="packagesEditor"></div>
+            <button class="btn-primary" id="savePackages">Árak mentése</button>
+            <div class="save-note" id="packagesSaveNote">Mentve!</div>
+          </div>
+          <div class="infra-note">
+            A többi beállítás (be-/kijelentkezési idő, min/max tartózkodás, faház ár, email sablonok) még nincs adatbázisban tárolva — ezekhez további fejlesztés kell. Szólj, ha ezekkel folytassuk.
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  const ADMIN_PASSWORD = "carpediem2026";
+
+  const SUPABASE_URL = "https://jeafthdujrzcczgvmgxj.supabase.co";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImplYWZ0aGR1anJ6Y2N6Z3ZtZ3hqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYyNjM2NTEsImV4cCI6MjEwMTgzOTY1MX0.0YSfafV6A8vRA0RaDCL1uzUcwOV68jCu01QtSpnJEuo";
+
+  let supabaseClient = null;
+  try { supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); } catch (e) {}
+
+  let ALL_BOOKINGS = [];
+  const ALL_PEG_NUMBERS = Array.from({ length: 17 }, (_, i) => i + 1);
+
+  const TAB_TITLES = {
+    tabDashboard: "Áttekintés",
+    tabBookings: "Foglalások",
+    tabCustomers: "Vendégek",
+    tabPegs: "Helyek",
+    tabNotifications: "Értesítések",
+    tabSettings: "Beállítások"
+  };
+
+  document.getElementById("unlockBtn").addEventListener("click", checkPassword);
+  document.getElementById("passwordInput").addEventListener("keydown", (e) => { if (e.key === "Enter") checkPassword(); });
+
+  function checkPassword() {
+    if (document.getElementById("passwordInput").value === ADMIN_PASSWORD) {
+      document.getElementById("lockBox").style.display = "none";
+      document.getElementById("dashboard").style.display = "block";
+      loadAll();
+    } else {
+      document.getElementById("lockError").style.display = "block";
+    }
+  }
+
+  document.getElementById("refreshBtn").addEventListener("click", loadAll);
+
+  document.querySelectorAll(".nav-item").forEach(item => {
+    item.addEventListener("click", () => {
+      document.querySelectorAll(".nav-item").forEach(b => b.classList.remove("active"));
+      document.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("active"));
+      item.classList.add("active");
+      const tabId = item.dataset.tab;
+      document.getElementById(tabId).classList.add("active");
+      document.querySelector(".topbar h1").textContent = TAB_TITLES[tabId] || "Áttekintés";
+    });
+  });
+
+  function formatFt(num) { return Math.round(num || 0).toLocaleString("hu-HU") + " Ft"; }
+
+  async function loadAll() {
+    document.getElementById("lastUpdated").textContent = "Frissítés...";
+    if (!supabaseClient) { document.getElementById("lastUpdated").textContent = "Nincs kapcsolat."; return; }
+
+    const { data, error } = await supabaseClient.from("bookings").select("*").order("arrival", { ascending: true });
+    if (error) { document.getElementById("lastUpdated").textContent = "Hiba: " + error.message; return; }
+
+    ALL_BOOKINGS = data || [];
+    renderDashboard();
+    renderBookings("all", "");
+    renderCustomers("");
+    renderPegs();
+    renderNotifications();
+    loadPackages();
+
+    document.getElementById("lastUpdated").textContent = "Frissítve: " + new Date().toLocaleTimeString("hu-HU");
+  }
+
+  function renderDashboard() {
+    const now = new Date();
+    const todayStart = new Date(now); todayStart.setHours(0,0,0,0);
+    const todayEnd = new Date(todayStart); todayEnd.setDate(todayEnd.getDate() + 1);
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const arrToday = ALL_BOOKINGS.filter(b => { const a = new Date(b.arrival); return a >= todayStart && a < todayEnd; });
+    const depToday = ALL_BOOKINGS.filter(b => { const d = new Date(b.departure); return d >= todayStart && d < todayEnd; });
+    const currentGuests = ALL_BOOKINGS.filter(b => new Date(b.arrival) <= now && new Date(b.departure) >= now);
+    const occupiedPegNumbers = new Set(currentGuests.map(b => b.peg_number));
+    const freeNow = 17 - occupiedPegNumbers.size;
+    const followupCount = ALL_BOOKINGS.filter(b => b.needs_followup).length;
+    const monthCount = ALL_BOOKINGS.filter(b => new Date(b.arrival) >= monthStart).length;
+
+    document.getElementById("cArrToday").textContent = arrToday.length;
+    document.getElementById("cDepToday").textContent = depToday.length;
+    document.getElementById("cCurrentGuests").textContent = currentGuests.length;
+    document.getElementById("cFreeNow").textContent = freeNow;
+    document.getElementById("cFollowup").textContent = followupCount;
+    document.getElementById("cMonthCount").textContent = monthCount;
+
+    const navBadge = document.getElementById("navBadge");
+    if (followupCount > 0) { navBadge.style.display = "inline-block"; navBadge.textContent = followupCount; }
+    else { navBadge.style.display = "none"; }
+
+    const arrList = document.getElementById("todayArrivalsList");
+    arrList.innerHTML = arrToday.length ? arrToday.map(b =>
+      "<div class='mini-row'><span>" + b.customer_name + " · " + b.peg_display_number + ". hely</span><span>" + (b.arrival_display || b.arrival) + "</span></div>"
+    ).join("") : "<div class='empty-note'>Ma nincs érkező.</div>";
+
+    const depList = document.getElementById("todayDeparturesList");
+    depList.innerHTML = depToday.length ? depToday.map(b =>
+      "<div class='mini-row'><span>" + b.customer_name + " · " + b.peg_display_number + ". hely</span><span>" + (b.departure_display || b.departure) + "</span></div>"
+    ).join("") : "<div class='empty-note'>Ma nincs távozó.</div>";
+  }
+
+  document.getElementById("toggleManualForm").addEventListener("click", () => {
+    document.getElementById("manualBookingForm").classList.toggle("show");
+  });
+
+  document.getElementById("saveManualBooking").addEventListener("click", async () => {
+    const pegNumber = parseInt(document.getElementById("mPegNumber").value, 10);
+    const pegDisplay = parseInt(document.getElementById("mPegDisplay").value, 10);
+    const name = document.getElementById("mName").value.trim();
+    const email = document.getElementById("mEmail").value.trim();
+    const phone = document.getElementById("mPhone").value.trim();
+    const arrivalRaw = document.getElementById("mArrival").value;
+    const hours = parseInt(document.getElementById("mHours").value, 10) || 24;
+    const total = parseFloat(document.getElementById("mTotal").value) || 0;
+    const deposit = parseFloat(document.getElementById("mDeposit").value) || 0;
+
+    if (!pegNumber || !pegDisplay || !name || !email || !phone || !arrivalRaw) {
+      alert("Tölts ki minden kötelező mezőt.");
+      return;
+    }
+
+    const arrival = new Date(arrivalRaw);
+    const departure = new Date(arrival.getTime() + hours * 60 * 60 * 1000);
+
+    const row = {
+      peg_number: pegNumber, peg_display_number: pegDisplay, package_hours: hours,
+      addon_bolcso: false, addon_szak: false,
+      arrival: arrival.toISOString(), departure: departure.toISOString(),
+      arrival_display: arrival.toLocaleString("hu-HU"), departure_display: departure.toLocaleString("hu-HU"),
+      cabin_included: false, cabin_price: 0,
+      customer_name: name, customer_email: email, customer_phone: phone,
+      total_price: total, deposit_amount: deposit, deposit_paid: false, status: "pending",
+      confirm_token: Array.from({length:24}, () => Math.floor(Math.random()*36).toString(36)).join("")
+    };
+
+    const { error } = await supabaseClient.from("bookings").insert([row]);
+    if (error) { alert("Hiba: " + error.message); return; }
+
+    alert("Foglalás mentve!");
+    document.getElementById("manualBookingForm").classList.remove("show");
+    loadAll();
+  });
+
+  let currentBookingFilter = "all";
+  document.querySelectorAll(".filter-chip").forEach(chip => {
+    chip.addEventListener("click", () => {
+      document.querySelectorAll(".filter-chip").forEach(c => c.classList.remove("active"));
+      chip.classList.add("active");
+      currentBookingFilter = chip.dataset.filter;
+      renderBookings(currentBookingFilter, document.getElementById("bookingSearch").value);
+    });
+  });
+  document.getElementById("bookingSearch").addEventListener("input", (e) => {
+    renderBookings(currentBookingFilter, e.target.value);
+  });
+
+  function renderBookings(filter, searchTerm) {
+    const now = new Date();
+    let list = ALL_BOOKINGS.slice();
+
+    if (filter === "upcoming") list = list.filter(b => new Date(b.departure) >= now);
+    if (filter === "past") list = list.filter(b => new Date(b.departure) < now);
+    if (filter === "followup") list = list.filter(b => b.needs_followup);
+
+    const term = (searchTerm || "").toLowerCase().trim();
+    if (term) {
+      list = list.filter(b =>
+        (b.customer_name || "").toLowerCase().includes(term) ||
+        (b.customer_email || "").toLowerCase().includes(term) ||
+        (b.customer_phone || "").toLowerCase().includes(term) ||
+        String(b.peg_display_number).includes(term)
+      );
+    }
+
+    const container = document.getElementById("bookingsList");
+    if (list.length === 0) { container.innerHTML = "<div class='empty-note'>Nincs találat.</div>"; return; }
+
+    container.innerHTML = list.map(b => {
+      let addons = [];
+      if (b.addon_bolcso) addons.push("Bölcső");
+      if (b.addon_szak) addons.push("Szák");
+      return "<div class='booking-card" + (b.needs_followup ? " followup" : "") + "'>" +
+        (b.needs_followup ? "<div class='followup-badge'>VISSZAHÍVÁST IGÉNYEL</div>" : "") +
+        "<div class='booking-name'>" + b.customer_name + "</div>" +
+        "<div class='booking-peg'>" + b.peg_display_number + ". számú hely</div>" +
+        "<div class='booking-detail'>" + (b.arrival_display || b.arrival) + " → " + (b.departure_display || b.departure) + "</div>" +
+        "<div class='booking-detail'>" + b.customer_phone + " · " + b.customer_email + "</div>" +
+        "<div class='booking-detail'>" + formatFt(b.total_price) + " (foglaló: " + formatFt(b.deposit_amount) + ")" + (addons.length ? " · " + addons.join(", ") : "") + "</div>" +
+        (b.customer_notes ? "<div class='booking-detail'>" + b.customer_notes + "</div>" : "") +
+        "<div class='btn-row'>" +
+          (b.needs_followup ? "<button class='btn-small btn-resolve' data-resolve='" + b.id + "'>Rendezve</button>" : "") +
+          "<button class='btn-small btn-delete' data-delete='" + b.id + "' data-name=\"" + b.customer_name.replace(/"/g,"&quot;") + "\">Törlés</button>" +
+        "</div>" +
+      "</div>";
+    }).join("");
+
+    container.querySelectorAll("[data-delete]").forEach(btn => btn.addEventListener("click", () => deleteBooking(btn.dataset.delete, btn.dataset.name)));
+    container.querySelectorAll("[data-resolve]").forEach(btn => btn.addEventListener("click", () => resolveFollowup(btn.dataset.resolve)));
+  }
+
+  async function deleteBooking(id, name) {
+    if (!confirm("Biztosan törlöd " + name + " foglalását?")) return;
+    const { error } = await supabaseClient.from("bookings").delete().eq("id", id);
+    if (error) { alert("Hiba: " + error.message); return; }
+    loadAll();
+  }
+
+  async function resolveFollowup(id) {
+    const { error } = await supabaseClient.from("bookings").update({ needs_followup: false }).eq("id", id);
+    if (error) { alert("Hiba: " + error.message); return; }
+    loadAll();
+  }
+
+  document.getElementById("customerSearch").addEventListener("input", (e) => renderCustomers(e.target.value));
+
+  function renderCustomers(searchTerm) {
+    const map = {};
+    ALL_BOOKINGS.forEach(b => {
+      const key = (b.customer_phone || b.customer_email || b.customer_name).toLowerCase();
+      if (!map[key]) map[key] = { name: b.customer_name, email: b.customer_email, phone: b.customer_phone, bookings: [] };
+      map[key].bookings.push(b);
+    });
+
+    let customers = Object.values(map);
+    const term = (searchTerm || "").toLowerCase().trim();
+    if (term) customers = customers.filter(c => c.name.toLowerCase().includes(term) || c.phone.includes(term));
+
+    const container = document.getElementById("customersList");
+    if (customers.length === 0) { container.innerHTML = "<div class='empty-note'>Nincs találat.</div>"; return; }
+
+    container.innerHTML = customers.map((c, i) => {
+      const followupCount = c.bookings.filter(b => b.needs_followup).length;
+      return "<div class='customer-card' data-toggle='" + i + "'>" +
+        "<div class='name'>" + c.name + "</div>" +
+        "<div class='meta'>" + c.phone + " · " + c.email + "</div>" +
+        "<div class='meta'>" + c.bookings.length + " látogatás" + (followupCount ? " · " + followupCount + " visszahívást igényelt" : "") + "</div>" +
+        "<div class='customer-history' id='hist" + i + "'>" +
+          c.bookings.map(b => "<div class='history-row'>" + (b.arrival_display || b.arrival) + " — " + b.peg_display_number + ". hely — " + formatFt(b.total_price) + "</div>").join("") +
+        "</div>" +
+      "</div>";
+    }).join("");
+
+    container.querySelectorAll("[data-toggle]").forEach(card => {
+      card.addEventListener("click", () => {
+        document.getElementById("hist" + card.dataset.toggle).classList.toggle("show");
+      });
+    });
+  }
+
+  function renderPegs() {
+    const now = new Date();
+    const occupied = {};
+    ALL_BOOKINGS.forEach(b => {
+      if (new Date(b.arrival) <= now && new Date(b.departure) >= now) occupied[b.peg_number] = b;
+    });
+
+    const container = document.getElementById("pegGrid");
+    container.innerHTML = ALL_PEG_NUMBERS.map(num => {
+      const booking = occupied[num];
+      const isOccupied = !!booking;
+      return "<div class='peg-tile " + (isOccupied ? "occupied" : "free") + "'>" +
+        "<div class='num'>#" + num + "</div>" +
+        "<div class='status'>" + (isOccupied ? "Foglalt" : "Szabad") + "</div>" +
+        (isOccupied ? "<div style='font-size:11px; margin-top:4px;'>" + booking.customer_name + "</div>" : "") +
+      "</div>";
+    }).join("");
+  }
+
+  function renderNotifications() {
+    const now = new Date();
+    const in48h = new Date(now.getTime() + 48 * 60 * 60 * 1000);
+    const ago48h = new Date(now.getTime() - 48 * 60 * 60 * 1000);
+
+    const followups = ALL_BOOKINGS.filter(b => b.needs_followup);
+    const newBookings = ALL_BOOKINGS.filter(b => b.created_at && new Date(b.created_at) >= ago48h);
+    const upcoming = ALL_BOOKINGS.filter(b => { const a = new Date(b.arrival); return a >= now && a <= in48h; });
+
+    document.getElementById("notifFollowup").innerHTML = followups.length ?
+      followups.map(b => "<div class='mini-row'><span>" + b.customer_name + " · " + b.peg_display_number + ". hely</span><span>" + b.customer_phone + "</span></div>").join("") :
+      "<div class='empty-note'>Nincs ilyen.</div>";
+
+    document.getElementById("notifNew").innerHTML = newBookings.length ?
+      newBookings.map(b => "<div class='mini-row'><span>" + b.customer_name + " · " + b.peg_display_number + ". hely</span><span>" + (b.arrival_display || b.arrival) + "</span></div>").join("") :
+      "<div class='empty-note'>Nincs új foglalás.</div>";
+
+    document.getElementById("notifUpcoming").innerHTML = upcoming.length ?
+      upcoming.map(b => "<div class='mini-row'><span>" + b.customer_name + " · " + b.peg_display_number + ". hely</span><span>" + (b.arrival_display || b.arrival) + "</span></div>").join("") :
+      "<div class='empty-note'>Nincs közelgő érkezés.</div>";
+  }
+
+  async function loadPackages() {
+    const { data, error } = await supabaseClient.from("packages").select("*").order("hours");
+    if (error) return;
+    const container = document.getElementById("packagesEditor");
+    container.innerHTML = data.map(p =>
+      "<div class='package-row'>" +
+        "<div class='pname'>" + p.hours + " órás</div>" +
+        "<input type='number' data-id='" + p.id + "' data-field='price' value='" + p.price + "'> Ft" +
+      "</div>"
+    ).join("");
+  }
+
+  document.getElementById("savePackages").addEventListener("click", async () => {
+    const inputs = document.querySelectorAll("#packagesEditor input");
+    for (const input of inputs) {
+      await supabaseClient.from("packages").update({ price: parseFloat(input.value) }).eq("id", input.dataset.id);
+    }
+    const note = document.getElementById("packagesSaveNote");
+    note.style.display = "block";
+    setTimeout(() => note.style.display = "none", 2000);
+  });
+</script>
+
+</body>
+</html>
