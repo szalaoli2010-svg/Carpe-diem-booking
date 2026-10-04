@@ -183,6 +183,7 @@
       <div class="addons-title">Extra felszerelés (opcionális)</div>
       <label class="addon-row"><input type="checkbox" id="addonBolcso"><span>Bölcső kölcsönzés</span><span class="addon-price">+2 000 Ft</span></label>
       <label class="addon-row"><input type="checkbox" id="addonSzak"><span>Szák kölcsönzés</span><span class="addon-price">+2 000 Ft</span></label>
+      <label class="addon-row"><input type="checkbox" id="addonKiserojegy"><span>Kísérőjegy</span><span class="addon-price">+1 500 Ft</span></label>
     </div>
     <div class="status-box empty" id="step2Status">Válassz egy csomagot</div>
     <div class="nav-row"><button class="next" id="step2Next" disabled>Tovább</button></div>
@@ -190,7 +191,7 @@
 
   <!-- SCREEN 3: DATE/TIME -->
   <div class="screen" id="screen3">
-    <div class="step-explainer">📅 Add meg, mikor érkezel — a távozási időpontot automatikusan kiszámoljuk a csomagod hossza alapján.</div>
+    <div class="step-explainer">📅 Add meg, mikor érkezel — a távozási időpontot automatikusan kiszámoljuk a csomagod hossza alapján.<br><b>Nyitvatartás:</b> hétfő–péntek 7:00–19:00, hétvégén 7:00–21:00.</div>
     <div class="field-group"><div class="field-label">Érkezés dátuma</div><select class="field-input" id="arrivalDate"></select></div>
     <div class="field-group"><div class="field-label">Érkezés időpontja</div>
       <div class="field-row"><select class="field-input time-select" id="arrivalHour"></select><select class="field-input time-select" id="arrivalMinute"></select></div>
@@ -327,7 +328,7 @@
   let booking = {
     peg: null,          // {number, type}
     pkg: null,           // {hours, price, discount, rods}
-    addons: { bolcso: false, szak: false },
+    addons: { bolcso: false, szak: false, kiserojegy: false },
     arrivalDate: null,   // "YYYY-MM-DD"
     arrivalHour: 10,
     arrivalMinute: 0,
@@ -376,6 +377,7 @@
     let p = 0;
     if (booking.addons.bolcso) p += ADDON_PRICE;
     if (booking.addons.szak) p += ADDON_PRICE;
+    if (booking.addons.kiserojegy) p += 1500;
     return p;
   }
   function totalPrice() { return fishingPrice() + (booking.cabinIncluded ? booking.cabinPrice : 0) + addonsPrice(); }
@@ -582,6 +584,7 @@
   const step2Next = document.getElementById("step2Next");
   const addonBolcso = document.getElementById("addonBolcso");
   const addonSzak = document.getElementById("addonSzak");
+  const addonKiserojegy = document.getElementById("addonKiserojegy");
 
   function durationLabel(hours) { return hours + " óra"; }
 
@@ -614,8 +617,10 @@
       let extras = [];
       if (addonBolcso.checked) extras.push("Bölcső");
       if (addonSzak.checked) extras.push("Szák");
+      if (addonKiserojegy.checked) extras.push("Kísérőjegy");
       booking.addons.bolcso = addonBolcso.checked;
       booking.addons.szak = addonSzak.checked;
+      booking.addons.kiserojegy = addonKiserojegy.checked;
       let extraText = extras.length ? " + " + extras.join(", ") : "";
       const total = fishingPrice() + addonsPrice();
       step2Status.innerHTML = "Kiválasztott csomag: <b>" + durationLabel(booking.pkg.hours) + "</b> (" + booking.pkg.rods + " bot)" + extraText + "<br>Összesen: <b>" + formatFt(total) + "</b>";
@@ -629,6 +634,7 @@
   }
   addonBolcso.addEventListener("change", updateStep2Status);
   addonSzak.addEventListener("change", updateStep2Status);
+  addonKiserojegy.addEventListener("change", updateStep2Status);
   step2Next.addEventListener("click", () => goNextOrReturn(2));
 
   // ===================== SCREEN 3: DATE/TIME =====================
@@ -646,21 +652,46 @@
       const opt = document.createElement("option"); opt.value = iso; opt.textContent = label;
       arrivalDateSel.appendChild(opt);
     }
-    for (let h = 0; h < 24; h++) {
-      const opt = document.createElement("option"); opt.value = h; opt.textContent = String(h).padStart(2,"0") + " óra";
-      arrivalHourSel.appendChild(opt);
-    }
-    arrivalHourSel.value = 10;
     [0,15,30,45].forEach(m => {
       const opt = document.createElement("option"); opt.value = m; opt.textContent = String(m).padStart(2,"0") + " perc";
       arrivalMinuteSel.appendChild(opt);
     });
+    populateHoursForSelectedDate();
   })();
+
+  // Nyitvatartás: hétfő-péntek 7:00-19:00, hétvégén 7:00-21:00
+  function openingHoursFor(date) {
+    const day = date.getDay(); // 0 = vasárnap, 6 = szombat
+    const isWeekend = (day === 0 || day === 6);
+    return { open: 7, close: isWeekend ? 21 : 19 };
+  }
+
+  function populateHoursForSelectedDate() {
+    const [y, m, d] = arrivalDateSel.value.split("-").map(Number);
+    const selectedDate = new Date(y, m - 1, d);
+    const { open, close } = openingHoursFor(selectedDate);
+
+    const previousValue = arrivalHourSel.value;
+    arrivalHourSel.innerHTML = "";
+    for (let h = open; h <= close; h++) {
+      const opt = document.createElement("option");
+      opt.value = h;
+      opt.textContent = String(h).padStart(2, "0") + " óra";
+      arrivalHourSel.appendChild(opt);
+    }
+    // Keep the previous hour selected if it's still valid for the new day, otherwise default to opening time.
+    const stillValid = Array.from(arrivalHourSel.options).some(o => o.value === previousValue);
+    arrivalHourSel.value = stillValid ? previousValue : String(open);
+  }
 
   function renderStep3() {
     if (!booking.arrivalDate) booking.arrivalDate = arrivalDateSel.value;
     else arrivalDateSel.value = booking.arrivalDate;
-    arrivalHourSel.value = booking.arrivalHour;
+    populateHoursForSelectedDate();
+    if (booking.arrivalHour !== undefined && booking.arrivalHour !== null) {
+      const stillValid = Array.from(arrivalHourSel.options).some(o => o.value === String(booking.arrivalHour));
+      if (stillValid) arrivalHourSel.value = booking.arrivalHour;
+    }
     arrivalMinuteSel.value = booking.arrivalMinute;
     updateDeparture();
   }
@@ -675,7 +706,7 @@
     const departure = new Date(arrival.getTime() + hours*60*60*1000);
     departureValue.innerHTML = formatHu(departure) + "<span class='duration-tag'>" + hours + " óra</span>";
   }
-  arrivalDateSel.addEventListener("change", updateDeparture);
+  arrivalDateSel.addEventListener("change", () => { populateHoursForSelectedDate(); updateDeparture(); });
   arrivalHourSel.addEventListener("change", updateDeparture);
   arrivalMinuteSel.addEventListener("change", updateDeparture);
   document.getElementById("step3Back").addEventListener("click", () => { editReturnTarget = null; goToStep(1); });
@@ -858,6 +889,7 @@
       let names = [];
       if (booking.addons.bolcso) names.push("Bölcső");
       if (booking.addons.szak) names.push("Szák");
+      if (booking.addons.kiserojegy) names.push("Kísérőjegy");
       document.getElementById("sumPriceAddons").textContent = names.join(" + ") + " — " + formatFt(aPrice);
     } else addonsRow.style.display = "none";
 
@@ -962,6 +994,7 @@
       package_hours: booking.pkg.hours,
       addon_bolcso: booking.addons.bolcso,
       addon_szak: booking.addons.szak,
+      addon_kiserojegy: booking.addons.kiserojegy,
       arrival: toLocalISOString(arrival),
       departure: toLocalISOString(departure),
       arrival_display: formatHu(arrival),
@@ -1003,9 +1036,9 @@
   });
 
   document.getElementById("restartBtn").addEventListener("click", () => {
-    booking = { peg: null, pkg: null, addons: {bolcso:false, szak:false}, arrivalDate: null, arrivalHour: 10, arrivalMinute: 0, cabinIncluded: false, cabinPrice: 0, customer: {name:"",email:"",phone:"",notes:""} };
+    booking = { peg: null, pkg: null, addons: {bolcso:false, szak:false, kiserojegy:false}, arrivalDate: null, arrivalHour: 10, arrivalMinute: 0, cabinIncluded: false, cabinPrice: 0, customer: {name:"",email:"",phone:"",notes:""} };
     nameInput.value = ""; emailInput.value = ""; phoneInput.value = ""; notesInput.value = "";
-    addonBolcso.checked = false; addonSzak.checked = false;
+    addonBolcso.checked = false; addonSzak.checked = false; addonKiserojegy.checked = false;
     cardNumber.value = ""; cardExpiry.value = ""; cardCvc.value = "";
     termsCheck.checked = false; privacyCheck.checked = false;
     document.getElementById("paymentFormWrap").style.display = "block";
@@ -1027,11 +1060,11 @@
     17: { type: "vip", status: "booked" },
   };
   const FALLBACK_PACKAGES = {
-    12: { price: 5000,  discount: 0,    rods: 2 },
-    24: { price: 10000, discount: 0,    rods: 3 },
-    48: { price: 17000, discount: 0,    rods: 3 },
-    72: { price: 24000, discount: 0,    rods: 3 },
-    96: { price: 30000, discount: 0.05, rods: 3 },
+    12: { price: 5500,  discount: 0, rods: 2 },
+    24: { price: 11000, discount: 0, rods: 3 },
+    48: { price: 18500, discount: 0, rods: 3 },
+    72: { price: 26000, discount: 0, rods: 3 },
+    96: { price: 33000, discount: 0, rods: 3 },
   };
 
   // ===== LOAD REAL DATA FROM SUPABASE (with safe fallback) =====
